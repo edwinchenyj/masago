@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@three-ts/orbit-controls": "^1.4.7",
     "three": "^0.115.0"
   },
   "devDependencies": {

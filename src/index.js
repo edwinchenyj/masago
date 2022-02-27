@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { WEBGL } from './webgl'
 import './modal'
+import { OrbitControls } from '@three-ts/orbit-controls'
 
 if (WEBGL.isWebGLAvailable()) {
   var camera, scene, renderer
@@ -26,6 +27,8 @@ if (WEBGL.isWebGLAvailable()) {
     )
     camera.position.set(500, 800, 1300)
     camera.lookAt(0, 0, 0)
+
+    // const controls = new OrbitControls(camera)
 
     scene = new THREE.Scene()
     scene.background = new THREE.Color(0xf0f0f0)
