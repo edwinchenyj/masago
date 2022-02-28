@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "start": "webpack-dev-server --mode development",
+    "start": "webpack-dev-server -d --config webpack.config.js --inline --hot", 
     "format": "prettier --write '**/*.js'"
   },
   "keywords": [],
@@ -13,7 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@three-ts/orbit-controls": "^1.4.7",
-    "three": "^0.115.0"
+    "three": "^0.138.0"
   },
   "devDependencies": {
     "prettier": "^2.0.4",

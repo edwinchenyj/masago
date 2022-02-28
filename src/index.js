@@ -1,22 +1,44 @@
 import * as THREE from 'three'
+
 import { WEBGL } from './webgl'
 import './modal'
 import { OrbitControls } from '@three-ts/orbit-controls'
+import * as MPM from './mpm'
 
 if (WEBGL.isWebGLAvailable()) {
-  var camera, scene, renderer
+  var camera, scene, renderer, controls
   var plane
   var mouse,
     raycaster,
     isShiftDown = false
 
-  var rollOverMesh, rollOverMaterial
-  var cubeGeo, cubeMaterial
 
   var objects = []
 
+  const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 3
+  const dimension = 2
+  const color = new THREE.Color()
+
+  const particles = {
+    mesh: null,
+    list: [],
+  } 
+  const grid = {
+    grid_res: particles_per_side * 4,
+    cells: [],
+  } 
+
+  // using cell size = 1 implicitly 
+  const dt = 1.0;
+  const gravity = new THREE.Vector3(0, -9.8, 0)
+  const iterations = 1.0/dt
+
+  function gridIndex(i,j,k) {
+    return k * particles_per_side * particles_per_side + j * particles_per_side + i
+  }
+
   init()
-  render()
+  animate()
 
   function init() {
     camera = new THREE.PerspectiveCamera(
@@ -25,150 +47,77 @@ if (WEBGL.isWebGLAvailable()) {
       1,
       10000
     )
-    camera.position.set(500, 800, 1300)
+    camera.position.set(30, 50, 80)
     camera.lookAt(0, 0, 0)
 
-    // const controls = new OrbitControls(camera)
 
     scene = new THREE.Scene()
-    scene.background = new THREE.Color(0xf0f0f0)
+    scene.background = new THREE.Color(0x666666)
 
-    var rollOverGeo = new THREE.BoxBufferGeometry(50, 50, 50)
-    rollOverMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      opacity: 0.5,
-      transparent: true,
-    })
-    rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial)
-    scene.add(rollOverMesh)
 
-    cubeGeo = new THREE.BoxBufferGeometry(50, 50, 50)
-    cubeMaterial = new THREE.MeshLambertMaterial({
-      color: 0xfeb74c,
-      map: new THREE.TextureLoader().load('static/textures/square.png'),
-    })
-
-    var gridHelper = new THREE.GridHelper(1000, 20)
+    var gridHelper = new THREE.GridHelper(50, 20)
     scene.add(gridHelper)
 
     raycaster = new THREE.Raycaster()
     mouse = new THREE.Vector2()
 
-    var geometry = new THREE.PlaneBufferGeometry(1000, 1000)
-    geometry.rotateX(-Math.PI / 2)
+    var plane_geometry = new THREE.PlaneBufferGeometry(100, 100)
+    plane_geometry.rotateX(-Math.PI / 2)
 
     plane = new THREE.Mesh(
-      geometry,
+      plane_geometry,
       new THREE.MeshBasicMaterial({ visible: false })
     )
     scene.add(plane)
 
     objects.push(plane)
 
-    var ambientLight = new THREE.AmbientLight(0x606060)
-    scene.add(ambientLight)
 
     var directionalLight = new THREE.DirectionalLight(0xffffff)
-    directionalLight.position.set(1, 0.75, 0.5).normalize()
+    directionalLight.position.set(5,5,5).normalize()
     scene.add(directionalLight)
+
+    // instancing mesh
+    MPM.initializeParticle(particles_per_side, particles, dimension)
+    MPM.initializeGrid(grid, dimension)
+    scene.add( particles.mesh )
+
 
     renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setPixelRatio(window.devicePixelRatio)
     renderer.setSize(window.innerWidth, window.innerHeight)
     document.body.appendChild(renderer.domElement)
 
-    document.addEventListener('mousemove', onDocumentMouseMove, false)
-    document.addEventListener('mousedown', onDocumentMouseDown, false)
-    document.addEventListener('keydown', onDocumentKeyDown, false)
-    document.addEventListener('keyup', onDocumentKeyUp, false)
-    window.addEventListener('resize', onWindowResize, false)
+    controls = new OrbitControls(camera, renderer.domElement)
+
+    window.addEventListener('resize', onWindowResize)
   }
 
   function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
-
     renderer.setSize(window.innerWidth, window.innerHeight)
   }
 
-  function onDocumentMouseMove(event) {
-    event.preventDefault()
-
-    mouse.set(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      -(event.clientY / window.innerHeight) * 2 + 1
-    )
-
-    raycaster.setFromCamera(mouse, camera)
-
-    var intersects = raycaster.intersectObjects(objects)
-
-    if (intersects.length > 0) {
-      var intersect = intersects[0]
-
-      rollOverMesh.position.copy(intersect.point).add(intersect.face.normal)
-      rollOverMesh.position
-        .divideScalar(50)
-        .floor()
-        .multiplyScalar(50)
-        .addScalar(25)
-    }
-
+  function animate(){
+    requestAnimationFrame(animate)
+    // MPM.simulate(grid, particles, dt)
+    controls.update()
     render()
   }
 
-  function onDocumentMouseDown(event) {
-    event.preventDefault()
-
-    mouse.set(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      -(event.clientY / window.innerHeight) * 2 + 1
-    )
-
-    raycaster.setFromCamera(mouse, camera)
-
-    var intersects = raycaster.intersectObjects(objects)
-
-    if (intersects.length > 0) {
-      var intersect = intersects[0]
-
-      if (isShiftDown) {
-        if (intersect.object !== plane) {
-          scene.remove(intersect.object)
-
-          objects.splice(objects.indexOf(intersect.object), 1)
-        }
-
-      } else {
-        var voxel = new THREE.Mesh(cubeGeo, cubeMaterial)
-        voxel.position.copy(intersect.point).add(intersect.face.normal)
-        voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25)
-        scene.add(voxel)
-
-        objects.push(voxel)
-      }
-
-      render()
-    }
-  }
-
-  function onDocumentKeyDown(event) {
-    switch (event.keyCode) {
-      case 16:
-        isShiftDown = true
-        break
-    }
-  }
-
-  function onDocumentKeyUp(event) {
-    switch (event.keyCode) {
-      case 16:
-        isShiftDown = false
-        break
-    }
-  }
-
   function render() {
+    const mat4 = new THREE.Matrix4()
+
+    for(let i = 0; i < particles.list.length; i++) {
+      // particles.mesh.setcolorat(i, color.sethex(math.random() * 0xffffff))
+      // particles.mesh.instancecolor.needsupdate = true
+      mat4.setPosition(particles.list[i].position)
+      particles.mesh.setMatrixAt(i, mat4)
+      particles.mesh.instanceMatrix.needsUpdate = true
+    }
+
+
     renderer.render(scene, camera)
   }
 } else {
