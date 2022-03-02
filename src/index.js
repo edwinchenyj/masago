@@ -15,7 +15,7 @@ if (WEBGL.isWebGLAvailable()) {
 
   var objects = []
 
-  const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 25
+  const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 16 
   const dimension = 2
   const color = new THREE.Color()
 
@@ -46,15 +46,16 @@ if (WEBGL.isWebGLAvailable()) {
       1,
       10000
     )
-    camera.position.set(particles_per_side * 2, particles_per_side * 2, 80)
-    camera.lookAt(particles_per_side * 2, particles_per_side * 2, 0)
+    camera.position.set(particles_per_side * 2, particles_per_side , 80)
+    camera.lookAt(particles_per_side * 2, particles_per_side , 0)
 
 
     scene = new THREE.Scene()
     scene.background = new THREE.Color(0x666666)
 
 
-    var gridHelper = new THREE.GridHelper(50, 20)
+    var gridHelper = new THREE.GridHelper(particles_per_side, particles_per_side)
+
     scene.add(gridHelper)
 
     raycaster = new THREE.Raycaster()
