@@ -1,7 +1,13 @@
 import * as THREE from 'three'
 // import * as math from 'mathjs'
-const {matrix, zeros, floor, add, subtract, multiply, square, divide} = require('mathjs')
+const {matrix, zeros, floor, add, subtract, multiply, square, divide, trace,transpose} = require('mathjs')
 
+const eos_stiffness = 10.0
+const eos_power = 4
+const rest_density = 4.0
+const dynamic_viscosity = 0.1
+
+const gravity = [0, -0.05] 
 export function Particle(dimension = 2) {
   return {
     position: new THREE.Vector3(0,0,0),
@@ -13,7 +19,6 @@ export function Particle(dimension = 2) {
   }
 }
 
-const gravity = [0, -0.05] 
 export function Cell(dimension = 2) {
   return {
     velocity: matrix(zeros(dimension)),
@@ -56,7 +61,7 @@ export function initializeParticle(
         let p = new Particle(dimension)
         p.position.setFromMatrixPosition(threejs_matrix)
         p.velocity = [0,0]
-        p.velocity = multiply(0.5,matrix([ Math.random() - 0.5, Math.random() - 0.5  + 3]) ) 
+        p.velocity = multiply(0.5,matrix([ Math.random() - 0.5, Math.random() - 0.5  + 1]) ) 
         p.C = matrix(zeros(dimension,dimension))
         p.mass = 1.0
         particles.list.push(p)
@@ -67,26 +72,6 @@ export function initializeParticle(
       }
     }
   } 
-  if (dimension == 3) {
-    for ( let x_pos = x_center - box_x / 2.0; x_pos < x_center + box_x / 2.0; x_pos += spacing) {
-      for ( let y_pos = y_center - box_y / 2.0; y_pos < y_center + box_y / 2.0; y_pos += spacing) {
-        for ( let z_pos = z_center - box_z / 2.0; z_pos < z_center + box_z / 2.0; z_pos += spacing) {
-        threejs_matrix.setPosition(new THREE.Vector3(x_pos, y_pos, z_pos))
-        let p = new Particle(dimension)
-        p.position.setFromMatrixPosition(threejs_matrix)
-        p.velocity = [0,0,0]
-        p.velocity = multiply(0.5,matrix([ Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5  ]) ) 
-        p.C = matrix(zeros(dimension,dimension))
-        p.mass = 1.0
-        particles.list.push(p)
-
-        particles.mesh.setMatrixAt(i, threejs_matrix)
-        particles.mesh.setColorAt(i, color.setHex(0xadd8e6))
-        i++
-      }
-    }
-  } 
-  }
 }
 export function initializeGrid(grid, dimension = 2) {
   const num_cells = grid.grid_res ** dimension
@@ -98,6 +83,7 @@ export function initializeGrid(grid, dimension = 2) {
 export function simulate(grid, particles, dt=1, dimension = 2) {
   resetGrid(grid, dimension)
   P2G(grid, particles, grid.grid_res, dimension)
+  // P2G_second(grid, particles, grid.grid_res, dt, dimension)
   gridVelocityUpdate(grid, grid.grid_res, dt, dimension)
   G2P(grid, particles, grid.grid_res, dt, dimension) // includes dt for advection
 }
@@ -149,31 +135,65 @@ export function P2G(grid, particles = [], grid_res, dimension = 2) {
         }
       }
     }
-    if(dimension == 3){
+  }
+}
+
+function P2G_second(grid, particles = [], grid_res, dt=1, dimension = 2) {
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i]
+
+    const position = p.position.toArray().slice(0, dimension)
+    const cell_idx = floor(position)
+
+    const cell_diff = subtract(subtract(position,cell_idx), 0.5)
+    const weights = []
+    calculateQuadraticWeights(cell_diff, weights)
+
+    let density = 0
+    if(dimension == 2){
       for(let gx = 0; gx < weights.length; gx++){
         for(let gy = 0; gy < weights.length; gy++){
-          for(let gz = 0; gz < weights.length; gz++){
-          const weight = weights[gx][0] * weights[gy][1] * weights[gz][2]
+          const weight = weights[gx][0] * weights[gy][1]
 
-          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1, cell_idx[2] + gz - 1]
-          const cell_dist = add(0.5, subtract(cell_idx_local, position))
-          const Q = multiply(p.C, cell_dist)
+          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
+          const cell_index = cell_idx_local[0]*grid_res + cell_idx_local[1]
+          density += grid.cells[cell_index].mass * weight
+        }
+      }
+      const volume = p.mass/density
 
-          const mass_contrib = weight * p.mass
+      const pressure = Math.max(-0.1, eos_stiffness * (Math.pow(density / rest_density, eos_power ) - 1))
+      let stress = matrix([[-pressure, 0], [0, -pressure]])
+      const dudv = p.C
+      let strain = dudv
+      const strain_trace = trace(strain)
+      strain.set([0,1], strain_trace)
+      strain.set([1,0], strain_trace)
 
-          const cell_index = cell_idx_local[0]*grid_res*grid_res + cell_idx_local[1]*grid_res + cell_idx_local[2]
+      const viscosity_term = multiply(dynamic_viscosity,strain)
+      stress = add(stress, viscosity_term)
+
+      const eq_16_term_0 = multiply(-volume*4*dt, stress)
+
+      for(let gx = 0; gx < weights.length; gx++){
+        for(let gy = 0; gy < weights.length; gy++){
+          const weight = weights[gx][0] * weights[gy][1]
+          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
+          const cell_dist = add(subtract(cell_idx_local, position), 0.5)
+
+          const cell_index = cell_idx_local[0]*grid_res + cell_idx_local[1]
           const cell = grid.cells[cell_index]
 
-          cell.mass += mass_contrib
-          cell.velocity = add(cell.velocity, multiply(mass_contrib, add(p.velocity, Q)))
+          const momentum = multiply(multiply(eq_16_term_0, weight),cell_dist)
+          cell.velocity = add(cell.velocity, momentum)
+
           grid.cells[cell_index] = cell
         }
       }
     }
-    }
+
   }
 }
-
 function calculateQuadraticWeights(cell_diff, weights) {
   
   weights.push(multiply(square(subtract(0.5, cell_diff)),0.5))
@@ -193,10 +213,10 @@ export function gridVelocityUpdate(grid = [], grid_res, dt=1, dimension = 2) {
         const x = parseInt(i / grid_res)
         const y = parseInt(i % grid_res)
         if (x < 2 || x > grid_res - 3) {
-          cell.velocity[0] = 0.0
+          cell.velocity.set([0],0.0)
         }
         if (y < 2 || y > grid_res - 3) {
-          cell.velocity[1] = 0.0
+          cell.velocity.set([1],0.0)
         }
       }
       if (dimension == 3) {
@@ -210,13 +230,13 @@ export function gridVelocityUpdate(grid = [], grid_res, dt=1, dimension = 2) {
         const y = parseInt(i % grid_res)
         const z = parseInt(i / (grid_res * grid_res))
         if (x < 2 || x > grid_res - 3) {
-          cell.velocity[0] = 0.0
+          cell.velocity.set([0],0.0)
         }
         if (y < 2 || y > grid_res - 3) {
-          cell.velocity[1] = 0.0
+          cell.velocity.set([1],0.0)
         }
         if (z < 2 || z > grid_res - 3) {
-          cell.velocity[2] = 0.0
+          cell.velocity.set([2],0.0)
         }
       }
       grid.cells[i] = cell
@@ -248,29 +268,19 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
           const cell_dist = add(0.5, subtract(cell_idx_local, position))
 
           const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
+
+          const term = transpose(matrix([multiply(weighted_velocity, cell_dist[0]), multiply(weighted_velocity, cell_dist[1])]))
+
+          B = add(B, term)
+
           p.velocity = add(p.velocity, weighted_velocity)
         }
       }
     }
-    if(dimension == 3){
-      for(let gx = 0; gx < weights.length; gx++){
-        for(let gy = 0; gy < weights.length; gy++){
-          for(let gz = 0; gz < weights.length; gz++){
-          const weight = weights[gx][0] * weights[gy][1] * weights[gz][2]
-
-          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1, cell_idx[2] + gz - 1]
-          const cell_index = parseInt(cell_idx_local[0])*grid_res*grid_res + parseInt(cell_idx_local[1])*grid_res + parseInt(cell_idx_local[2])
-          const cell_dist = add(0.5, subtract(cell_idx_local, position))
-
-          const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
-          p.velocity = add(p.velocity, weighted_velocity)
-        }
-      }
-      }
-    }
-    // p.C = multiply(B,4.0)
+    p.C = multiply(B,4.0)
     advect(p, dt, dimension)
     safetyClamp(p, grid_res, dimension)
+    handleBC(p, grid_res, dimension)
 
     particles[i] = p
   }
@@ -281,9 +291,6 @@ function advect(p, dt=1, dimension = 2) {
   const movement = multiply(p.velocity, dt)
   p.position.x = p.position.x + movement.toArray()[0]
   p.position.y = p.position.y + movement.toArray()[1]
-  if(dimension == 3){
-    p.position.z = p.position.z + movement.toArray()[2]
-  }
 }
 
 function safetyClamp(p, grid_res, dimension = 2) {
@@ -299,12 +306,22 @@ function safetyClamp(p, grid_res, dimension = 2) {
     if(p.position.y > grid_res - 2.0){
       p.position.y = grid_res - 2.0
     }
-    if(dimension == 3){
-    if(p.position.z < 1.0){
-      p.position.z = 1.0
-    }
-    if(p.position.z > grid_res - 2.0){
-      p.position.z = grid_res - 2.0
-    }
+}
+
+function handleBC(p, grid_res, dimension = 2){
+  const approx = add(p.position.toArray().slice(0, dimension), p.velocity.toArray().slice(0, dimension))
+  const wall_min = 3
+  const wall_max = grid_res - 4
+  if(approx[0] < wall_min){
+    p.velocity.set([0],add(p.velocity.get([0]), wall_min - approx[0])) 
+  }
+  if(approx[0] > wall_max){
+    p.velocity.set([0],add(p.velocity.get([0]), wall_max - approx[0]))
+  }
+  if(approx[1] < wall_min){
+    p.velocity.set([1],add(p.velocity.get([1]), wall_min - approx[1]))
+  }
+  if(approx[1] > wall_max){
+    p.velocity.set([1],add(p.velocity.get([1]), wall_max - approx[1]))
   }
 }
