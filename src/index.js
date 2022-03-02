@@ -8,13 +8,35 @@ import GUI from 'lil-gui'
 
 const gui = new GUI()
 
-const gui_state = {
+const state = {
+  scene: null,
+  refresh: function () {
+    console.log('refresh')
+    this.scene.remove(this.particles.mesh)
+    this.particles.list = []
+    this.grid_res = this.amount_per_side * 4
+    this.grid.cells = []
+    this.initMPM()
+    },
+  initMPM: function () {
+    MPM.initializeParticle(this.amount_per_side, this.particles, this.dimension, this.grid.grid_res)
+    MPM.initializeGrid(this.grid, this.dimension)
+    this.scene.add( state.particles.mesh )
+  },
   dimension: 2,
-  amount_per_side: 1,
+  amount_per_side: 16,
   grid_res: 1,
   gravity: [0, -0.05],
   dt: 0.01,
   iterations: 1,
+  particles: {
+    mesh: null,
+    list: [],
+  },
+  grid: {
+    grid_res: 64,
+    cells:[],
+  },
   show_velocity: false,
   show_grid: false,
   show_particles: true,
@@ -24,7 +46,7 @@ const gui_state = {
   show_grid_pressure: false,
 } 
 
-gui.add(gui_state, 'dimension', [2, 3])
+gui.add(state, 'refresh')
 
 
 if (WEBGL.isWebGLAvailable()) {
@@ -38,17 +60,7 @@ if (WEBGL.isWebGLAvailable()) {
   var objects = []
 
   const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 16 
-  const dimension = 2
-  const color = new THREE.Color()
 
-  const particles = {
-    mesh: null,
-    list: [],
-  } 
-  const grid = {
-    grid_res: particles_per_side * 4,
-    cells: [],
-  } 
 
   const dt = 1.0;
 
@@ -66,13 +78,13 @@ if (WEBGL.isWebGLAvailable()) {
     camera.lookAt(2*particles_per_side, particles_per_side , 0)
 
 
-    scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x666666)
+    state.scene = new THREE.Scene()
+    state.scene.background = new THREE.Color(0x666666)
 
 
     var gridHelper = new THREE.GridHelper(particles_per_side * 4, particles_per_side)
       gridHelper.translateX(2*particles_per_side )
-    scene.add(gridHelper)
+    state.scene.add(gridHelper)
 
     raycaster = new THREE.Raycaster()
     mouse = new THREE.Vector2()
@@ -84,19 +96,18 @@ if (WEBGL.isWebGLAvailable()) {
       plane_geometry,
       new THREE.MeshBasicMaterial({ visible: false })
     )
-    scene.add(plane)
+    state.scene.add(plane)
 
     objects.push(plane)
 
 
     var directionalLight = new THREE.DirectionalLight(0xffffff)
     directionalLight.position.set(5,5,5).normalize()
-    scene.add(directionalLight)
+    state.scene.add(directionalLight)
 
     // instancing mesh
-    MPM.initializeParticle(particles_per_side, particles, dimension, grid.grid_res)
-    MPM.initializeGrid(grid, dimension)
-    scene.add( particles.mesh )
+    state.initMPM()
+
 
 
     renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -108,6 +119,9 @@ if (WEBGL.isWebGLAvailable()) {
 
     window.addEventListener('resize', onWindowResize)
   }
+  
+  function initMPM(dimension = 2) {
+  }
 
   function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight
@@ -117,7 +131,7 @@ if (WEBGL.isWebGLAvailable()) {
 
   function animate(){
     requestAnimationFrame(animate)
-    MPM.simulate(grid, particles.list, dt)
+    MPM.simulate(state.grid, state.particles.list, dt)
     // controls.update()
     render()
   }
@@ -125,17 +139,20 @@ if (WEBGL.isWebGLAvailable()) {
   function render() {
     const mat4 = new THREE.Matrix4()
 
-    for(let i = 0; i < particles.list.length; i++) {
+    for(let i = 0; i < state.particles.list.length; i++) {
       // particles.mesh.setcolorat(i, color.sethex(math.random() * 0xffffff))
       // particles.mesh.instancecolor.needsupdate = true
-      mat4.setPosition(particles.list[i].position)
-      particles.mesh.setMatrixAt(i, mat4)
-      particles.mesh.instanceMatrix.needsUpdate = true
+      mat4.setPosition(state.particles.list[i].position)
+      state.particles.mesh.setMatrixAt(i, mat4)
+      state.particles.mesh.instanceMatrix.needsUpdate = true
     }
 
 
-    renderer.render(scene, camera)
+    renderer.render(state.scene, camera)
   }
+
+
+
 } else {
   var warning = WEBGL.getWebGLErrorMessage()
   document.body.appendChild(warning)

@@ -28,6 +28,7 @@ export function initializeParticle(
   dimension = 2,
   grid_res = amount_per_side * 4
 ) {
+  particles.list = []
   const particle_geometry = new THREE.IcosahedronGeometry(0.5, 1)
   const particle_material = new THREE.MeshLambertMaterial()
   particles.mesh = new THREE.InstancedMesh(
