@@ -15,7 +15,7 @@ if (WEBGL.isWebGLAvailable()) {
 
   var objects = []
 
-  const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 3
+  const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 25
   const dimension = 2
   const color = new THREE.Color()
 
@@ -30,7 +30,6 @@ if (WEBGL.isWebGLAvailable()) {
 
   // using cell size = 1 implicitly 
   const dt = 1.0;
-  const gravity = new THREE.Vector3(0, -9.8, 0)
   const iterations = 1.0/dt
 
   function gridIndex(i,j,k) {
@@ -47,8 +46,8 @@ if (WEBGL.isWebGLAvailable()) {
       1,
       10000
     )
-    camera.position.set(30, 50, 80)
-    camera.lookAt(0, 0, 0)
+    camera.position.set(particles_per_side * 2, particles_per_side * 2, 80)
+    camera.lookAt(particles_per_side * 2, particles_per_side * 2, 0)
 
 
     scene = new THREE.Scene()
@@ -62,7 +61,7 @@ if (WEBGL.isWebGLAvailable()) {
     mouse = new THREE.Vector2()
 
     var plane_geometry = new THREE.PlaneBufferGeometry(100, 100)
-    plane_geometry.rotateX(-Math.PI / 2)
+    // plane_geometry.rotateX(-Math.PI / 2)
 
     plane = new THREE.Mesh(
       plane_geometry,
@@ -78,7 +77,7 @@ if (WEBGL.isWebGLAvailable()) {
     scene.add(directionalLight)
 
     // instancing mesh
-    MPM.initializeParticle(particles_per_side, particles, dimension)
+    MPM.initializeParticle(particles_per_side, particles, dimension, grid.grid_res)
     MPM.initializeGrid(grid, dimension)
     scene.add( particles.mesh )
 
@@ -88,7 +87,7 @@ if (WEBGL.isWebGLAvailable()) {
     renderer.setSize(window.innerWidth, window.innerHeight)
     document.body.appendChild(renderer.domElement)
 
-    controls = new OrbitControls(camera, renderer.domElement)
+    // controls = new OrbitControls(camera, renderer.domElement)
 
     window.addEventListener('resize', onWindowResize)
   }
@@ -101,8 +100,8 @@ if (WEBGL.isWebGLAvailable()) {
 
   function animate(){
     requestAnimationFrame(animate)
-    // MPM.simulate(grid, particles, dt)
-    controls.update()
+    MPM.simulate(grid, particles.list, dt)
+    // controls.update()
     render()
   }
 

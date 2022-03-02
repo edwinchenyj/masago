@@ -1,11 +1,11 @@
 {
-  "name": "three-npm",
+  "name": "masago",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "start": "webpack-dev-server -d --config webpack.config.js --inline --hot", 
+    "start": "webpack-dev-server -d --config webpack.config.js --inline --hot",
     "format": "prettier --write '**/*.js'"
   },
   "keywords": [],
@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@three-ts/orbit-controls": "^1.4.7",
+    "mathjs": "^10.1.1",
     "three": "^0.138.0"
   },
   "devDependencies": {
