@@ -67,8 +67,27 @@ export function initializeParticle(
       }
     }
   } 
-}
+  if (dimension == 3) {
+    for ( let x_pos = x_center - box_x / 2.0; x_pos < x_center + box_x / 2.0; x_pos += spacing) {
+      for ( let y_pos = y_center - box_y / 2.0; y_pos < y_center + box_y / 2.0; y_pos += spacing) {
+        for ( let z_pos = z_center - box_z / 2.0; z_pos < z_center + box_z / 2.0; z_pos += spacing) {
+        threejs_matrix.setPosition(new THREE.Vector3(x_pos, y_pos, z_pos))
+        let p = new Particle(dimension)
+        p.position.setFromMatrixPosition(threejs_matrix)
+        p.velocity = [0,0,0]
+        p.velocity = multiply(0.001,matrix([ Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5  ]) ) 
+        p.C = matrix(zeros(dimension,dimension))
+        p.mass = 1.0
+        particles.list.push(p)
 
+        particles.mesh.setMatrixAt(i, threejs_matrix)
+        particles.mesh.setColorAt(i, color.setHex(0xadd8e6))
+        i++
+      }
+    }
+  } 
+  }
+}
 export function initializeGrid(grid, dimension = 2) {
   const num_cells = grid.grid_res ** dimension
   for (let i = 0; i < num_cells; i++) {
@@ -81,7 +100,6 @@ export function simulate(grid, particles, dt=1, dimension = 2) {
   P2G(grid, particles, grid.grid_res, dimension)
   gridVelocityUpdate(grid, grid.grid_res, dt, dimension)
   G2P(grid, particles, grid.grid_res, dt, dimension) // includes dt for advection
-  setTimeout(function(){}, 100)
 }
 
 export function resetGrid(grid = [], dimension =2) {
@@ -120,14 +138,31 @@ export function P2G(grid, particles = [], grid_res, dimension = 2) {
           cell.velocity = add(cell.velocity, multiply(mass_contrib, add(p.velocity, Q)))
           grid.cells[cell_index] = cell
         }
+      }
+    }
+    if(dimension == 3){
+      for(let gx = 0; gx < weights.length; gx++){
+        for(let gy = 0; gy < weights.length; gy++){
+          for(let gz = 0; gz < weights.length; gz++){
+          const weight = weights[gx][0] + weights[gy][1] + weights[gz][2]
 
+          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1, cell_idx[2] + gz - 1]
+          const cell_dist = add(0.5, subtract(cell_idx_local, position))
+          const Q = multiply(p.C, cell_dist)
+
+          const mass_contrib = weight * p.mass
+
+          const cell_index = cell_idx_local[0]*grid_res*grid_res + cell_idx_local[1]*grid_res + cell_idx_local[2]
+          const cell = grid.cells[cell_index]
+
+          cell.mass += mass_contrib
+          cell.velocity = add(cell.velocity, multiply(mass_contrib, add(p.velocity, Q)))
+          grid.cells[cell_index] = cell
+        }
+      }
     }
     }
   }
-}
-
-function gridIndex(x, y, z, grid_res) {
-  return x + y * grid_res + z * grid_res * grid_res
 }
 
 function calculateQuadraticWeights(cell_diff, weights) {
@@ -154,8 +189,28 @@ export function gridVelocityUpdate(grid = [], grid_res, dt=1, dimension = 2) {
         if (y < 2 || y > grid_res - 3) {
           cell.velocity[1] = 0.0
         }
-        grid.cells[i] = cell
       }
+      if (dimension == 3) {
+        if(gravity.length == 2){
+          gravity.push(0)
+        }
+        cell.velocity = add(cell.velocity, multiply(dt,gravity))
+
+        // boundary conditions
+        const x = parseInt(i / grid_res)
+        const y = parseInt(i % grid_res)
+        const z = parseInt(i / (grid_res * grid_res))
+        if (x < 2 || x > grid_res - 3) {
+          cell.velocity[0] = 0.0
+        }
+        if (y < 2 || y > grid_res - 3) {
+          cell.velocity[1] = 0.0
+        }
+        if (z < 2 || z > grid_res - 3) {
+          cell.velocity[2] = 0.0
+        }
+      }
+      grid.cells[i] = cell
     }
     grid.cells[i] = cell
   }
@@ -174,62 +229,55 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
     calculateQuadraticWeights(cell_diff, weights)
 
     let B = matrix(zeros(dimension, dimension))
-    for(let gx = 0; gx < weights.length; gx++){
-      for(let gy = 0; gy < weights.length; gy++){
-        const weight = weights[gx][0] + weights[gy][1]
+    if(dimension == 2){
+      for(let gx = 0; gx < weights.length; gx++){
+        for(let gy = 0; gy < weights.length; gy++){
+          const weight = weights[gx][0] + weights[gy][1]
 
-        const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
-        const cell_index = parseInt(cell_idx_local[0])*grid_res + parseInt(cell_idx_local[1])
-        const cell_dist = add(0.5, subtract(cell_idx_local, position))
+          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
+          const cell_index = parseInt(cell_idx_local[0])*grid_res + parseInt(cell_idx_local[1])
+          const cell_dist = add(0.5, subtract(cell_idx_local, position))
 
-        const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
-        // if(weighted_velocity.toArray()[0] > 1){
-        //   console.log(weighted_velocity)
-        // }
-        // if(weighted_velocity.toArray()[0] < -1){
-        //   console.log(weighted_velocity)
-        // }
-        // if(weighted_velocity.toArray()[1] > 1){
-        //   console.log(weighted_velocity)
-        // }
-        // if(weighted_velocity.toArray()[1] < -1){
-        //   console.log(weighted_velocity)
-        // }
-
-        p.velocity = add(p.velocity, weighted_velocity)
-        
-        // if(p.velocity.toArray()[0] > 1.0 || p.velocity.toArray()[0] < -1.0){
-        //   console.log(p.velocity)
-        // }
-        // if(p.velocity.toArray()[1] > 1.0 || p.velocity.toArray()[1] < -1.0){
-        //   console.log(p.velocity)
-        // }
+          const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
+          p.velocity = add(p.velocity, weighted_velocity)
+        }
       }
     }
+    if(dimension == 3){
+      for(let gx = 0; gx < weights.length; gx++){
+        for(let gy = 0; gy < weights.length; gy++){
+          for(let gz = 0; gz < weights.length; gz++){
+          const weight = weights[gx][0] + weights[gy][1] + weights[gz][2]
 
+          const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1, cell_idx[2] + gz - 1]
+          const cell_index = parseInt(cell_idx_local[0])*grid_res*grid_res + parseInt(cell_idx_local[1])*grid_res + parseInt(cell_idx_local[2])
+          const cell_dist = add(0.5, subtract(cell_idx_local, position))
+
+          const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
+          p.velocity = add(p.velocity, weighted_velocity)
+        }
+      }
+      }
+    }
     // p.C = multiply(B,4.0)
-    advect(p, dt)
-    safetyClamp(p, grid_res)
+    advect(p, dt, dimension)
+    safetyClamp(p, grid_res, dimension)
 
     particles[i] = p
   }
+
 }
 
-function advect(p, dt=1) {
+function advect(p, dt=1, dimension = 2) {
   const movement = multiply(p.velocity, dt)
-  // console.log(movement)
-  // if(movement.toArray()[0] > 1.0 || movement.toArray()[0] < -1.0){
-  //   console.log(movement)
-  // }
-  // if(movement.toArray()[1] > 1.0 || movement.toArray()[1] < -1.0){
-  //   console.log(movement)
-  // }
   p.position.x = p.position.x + movement.toArray()[0]
   p.position.y = p.position.y + movement.toArray()[1]
-  // p.position = add(p.position, multiply(dt, p.velocity))
+  if(dimension == 3){
+    p.position.z = p.position.z + movement.toArray()[2]
+  }
 }
 
-function safetyClamp(p, grid_res) {
+function safetyClamp(p, grid_res, dimension = 2) {
     if(p.position.x < 1.0){
       p.position.x = 1.0
     }
@@ -242,5 +290,12 @@ function safetyClamp(p, grid_res) {
     if(p.position.y > grid_res - 2.0){
       p.position.y = grid_res - 2.0
     }
-
+    if(dimension == 3){
+    if(p.position.z < 1.0){
+      p.position.z = 1.0
+    }
+    if(p.position.z > grid_res - 2.0){
+      p.position.z = grid_res - 2.0
+    }
+  }
 }

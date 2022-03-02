@@ -24,10 +24,11 @@ const state = {
     state.scene.add( state.particles.mesh )
   },
   dimension: 2,
-  amount_per_side: 16,
+  amount_per_side: 8,
   grid_res: 1,
   gravity: [0, -0.05],
   dt: 0.01,
+  
   iterations: 1,
   particles: {
     mesh: null,
@@ -47,7 +48,7 @@ const state = {
 } 
 
 gui.add(state, 'refresh')
-gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
+// gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
 
 if (WEBGL.isWebGLAvailable()) {
   var camera, scene, renderer, controls
@@ -130,8 +131,10 @@ if (WEBGL.isWebGLAvailable()) {
   }
 
   function animate(){
-    requestAnimationFrame(animate)
-    MPM.simulate(state.grid, state.particles.list, dt)
+    setTimeout(function() {
+      requestAnimationFrame(animate)
+      MPM.simulate(state.grid, state.particles.list, state.dt, state.dimension)
+}, 1.0/state.dt)
     // controls.update()
     render()
   }
