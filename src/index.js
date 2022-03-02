@@ -4,6 +4,28 @@ import { WEBGL } from './webgl'
 import './modal'
 import { OrbitControls } from '@three-ts/orbit-controls'
 import * as MPM from './mpm'
+import GUI from 'lil-gui'
+
+const gui = new GUI()
+
+const gui_state = {
+  dimension: 2,
+  amount_per_side: 1,
+  grid_res: 1,
+  gravity: [0, -0.05],
+  dt: 0.01,
+  iterations: 1,
+  show_velocity: false,
+  show_grid: false,
+  show_particles: true,
+  show_forces: false,
+  show_grid_forces: false,
+  show_grid_velocity: false,
+  show_grid_pressure: false,
+} 
+
+gui.add(gui_state, 'dimension', [2, 3])
+
 
 if (WEBGL.isWebGLAvailable()) {
   var camera, scene, renderer, controls
@@ -28,13 +50,7 @@ if (WEBGL.isWebGLAvailable()) {
     cells: [],
   } 
 
-  // using cell size = 1 implicitly 
   const dt = 1.0;
-  const iterations = 1.0/dt
-
-  function gridIndex(i,j,k) {
-    return k * particles_per_side * particles_per_side + j * particles_per_side + i
-  }
 
   init()
   animate()
@@ -46,23 +62,23 @@ if (WEBGL.isWebGLAvailable()) {
       1,
       10000
     )
-    camera.position.set(particles_per_side * 2, particles_per_side , 80)
-    camera.lookAt(particles_per_side * 2, particles_per_side , 0)
+    camera.position.set(2*particles_per_side, particles_per_side , 80)
+    camera.lookAt(2*particles_per_side, particles_per_side , 0)
 
 
     scene = new THREE.Scene()
     scene.background = new THREE.Color(0x666666)
 
 
-    var gridHelper = new THREE.GridHelper(particles_per_side, particles_per_side)
-
+    var gridHelper = new THREE.GridHelper(particles_per_side * 4, particles_per_side)
+      gridHelper.translateX(2*particles_per_side )
     scene.add(gridHelper)
 
     raycaster = new THREE.Raycaster()
     mouse = new THREE.Vector2()
 
     var plane_geometry = new THREE.PlaneBufferGeometry(100, 100)
-    // plane_geometry.rotateX(-Math.PI / 2)
+    plane_geometry.rotateX(-Math.PI / 2)
 
     plane = new THREE.Mesh(
       plane_geometry,

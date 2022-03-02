@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@three-ts/orbit-controls": "^1.4.7",
+    "lil-gui": "^0.16.1",
     "mathjs": "^10.1.1",
     "three": "^0.138.0"
   },
