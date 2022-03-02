@@ -27,7 +27,7 @@ const state = {
   amount_per_side: 8,
   grid_res: 1,
   gravity: [0, -0.05],
-  dt: 0.01,
+  dt: 1.0,
   
   iterations: 1,
   particles: {

@@ -56,7 +56,7 @@ export function initializeParticle(
         let p = new Particle(dimension)
         p.position.setFromMatrixPosition(threejs_matrix)
         p.velocity = [0,0]
-        p.velocity = multiply(0.001,matrix([ Math.random() - 0.5, Math.random() - 0.5  ]) ) 
+        p.velocity = multiply(0.5,matrix([ Math.random() - 0.5, Math.random() - 0.5  + 3]) ) 
         p.C = matrix(zeros(dimension,dimension))
         p.mass = 1.0
         particles.list.push(p)
@@ -75,7 +75,7 @@ export function initializeParticle(
         let p = new Particle(dimension)
         p.position.setFromMatrixPosition(threejs_matrix)
         p.velocity = [0,0,0]
-        p.velocity = multiply(0.001,matrix([ Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5  ]) ) 
+        p.velocity = multiply(0.5,matrix([ Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5  ]) ) 
         p.C = matrix(zeros(dimension,dimension))
         p.mass = 1.0
         particles.list.push(p)
@@ -104,15 +104,33 @@ export function simulate(grid, particles, dt=1, dimension = 2) {
 
 export function resetGrid(grid = [], dimension =2) {
   // reset grid
-  for (let i = 0; i < grid.cells.length; i++) {
-    grid.cells[i].velocity = matrix(zeros(dimension))
-    grid.cells[i].mass = 0.0
-  }
+  grid.cells = []
+  initializeGrid(grid, dimension)
 }
+function gridIndex(i, j, grid_res) { return i + grid_res*j; }
 
 export function P2G(grid, particles = [], grid_res, dimension = 2) {
   for (let i = 0; i < particles.length; i++) {
     const p = particles[i]
+    // const base_coord = floor(subtract(p.position.toArray(), 0.5))
+    // const fx = subtract(p.position.toArray(), base_coord) // base position in grid units
+
+    // const weights = [
+    //   dotmultiply([0.5,0.5], square(subtract([1.5,1.5], fx))),
+    //   subtract([0.75,0.75], square(subtract(fx, [1,1]))),
+    //   dotmultiply([0.5,0.5], square(subtract([0.5,0.5], fx))),
+    // ]
+
+    // const mv = [p.velocity[0] * p.mass, p.velocity[1] * p.mass, p.mass]
+
+    // for(let j = 0; j < weights.length; j++) {
+    //   for(let k = 0; k < weights.length; k++) {
+    //     const ii = gridIndex(base_coord[0] + j, base_coord[1] + k, grid_res) 
+    //     const weight = weights[j][0]
+    //   }
+    // }
+
+
     const position = p.position.toArray().slice(0, dimension)
     const cell_idx = floor(position)
 
@@ -123,7 +141,7 @@ export function P2G(grid, particles = [], grid_res, dimension = 2) {
     if(dimension == 2){
       for(let gx = 0; gx < weights.length; gx++){
         for(let gy = 0; gy < weights.length; gy++){
-          const weight = weights[gx][0] + weights[gy][1]
+          const weight = weights[gx][0] * weights[gy][1]
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
           const cell_dist = add(0.5, subtract(cell_idx_local, position))
@@ -232,7 +250,7 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
     if(dimension == 2){
       for(let gx = 0; gx < weights.length; gx++){
         for(let gy = 0; gy < weights.length; gy++){
-          const weight = weights[gx][0] + weights[gy][1]
+          const weight = weights[gx][0] * weights[gy][1]
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
           const cell_index = parseInt(cell_idx_local[0])*grid_res + parseInt(cell_idx_local[1])
