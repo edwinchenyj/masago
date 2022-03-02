@@ -24,7 +24,7 @@ const state = {
     state.scene.add( state.particles.mesh )
   },
   dimension: 2,
-  amount_per_side: 8,
+  amount_per_side: 4,
   grid_res: 1,
   gravity: [0, -0.05],
   dt: 1.0,
@@ -48,7 +48,7 @@ const state = {
 } 
 
 gui.add(state, 'refresh')
-// gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
+gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
 
 if (WEBGL.isWebGLAvailable()) {
   var camera, scene, renderer, controls
@@ -85,6 +85,7 @@ if (WEBGL.isWebGLAvailable()) {
 
     var gridHelper = new THREE.GridHelper(particles_per_side * 4, particles_per_side)
       gridHelper.translateX(2*particles_per_side )
+      gridHelper.translateZ(2*particles_per_side )
     state.scene.add(gridHelper)
 
     raycaster = new THREE.Raycaster()

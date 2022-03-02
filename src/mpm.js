@@ -143,7 +143,7 @@ export function P2G(grid, particles = [], grid_res, dimension = 2) {
       for(let gx = 0; gx < weights.length; gx++){
         for(let gy = 0; gy < weights.length; gy++){
           for(let gz = 0; gz < weights.length; gz++){
-          const weight = weights[gx][0] + weights[gy][1] + weights[gz][2]
+          const weight = weights[gx][0] * weights[gy][1] * weights[gz][2]
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1, cell_idx[2] + gz - 1]
           const cell_dist = add(0.5, subtract(cell_idx_local, position))
@@ -246,7 +246,7 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
       for(let gx = 0; gx < weights.length; gx++){
         for(let gy = 0; gy < weights.length; gy++){
           for(let gz = 0; gz < weights.length; gz++){
-          const weight = weights[gx][0] + weights[gy][1] + weights[gz][2]
+          const weight = weights[gx][0] * weights[gy][1] * weights[gz][2]
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1, cell_idx[2] + gz - 1]
           const cell_index = parseInt(cell_idx_local[0])*grid_res*grid_res + parseInt(cell_idx_local[1])*grid_res + parseInt(cell_idx_local[2])
