@@ -10,18 +10,18 @@ const gui = new GUI()
 
 const state = {
   scene: null,
-  refresh: function () {
+  refresh:  () => {
     console.log('refresh')
-    this.scene.remove(this.particles.mesh)
-    this.particles.list = []
-    this.grid_res = this.amount_per_side * 4
-    this.grid.cells = []
-    this.initMPM()
+    state.scene.remove(state.particles.mesh)
+    state.particles.list = []
+    state.grid_res = state.amount_per_side * 4
+    state.grid.cells = []
+    state.initMPM()
     },
-  initMPM: function () {
-    MPM.initializeParticle(this.amount_per_side, this.particles, this.dimension, this.grid.grid_res)
-    MPM.initializeGrid(this.grid, this.dimension)
-    this.scene.add( state.particles.mesh )
+  initMPM: () =>{
+    MPM.initializeParticle(state.amount_per_side, state.particles, state.dimension, state.grid.grid_res)
+    MPM.initializeGrid(state.grid, state.dimension)
+    state.scene.add( state.particles.mesh )
   },
   dimension: 2,
   amount_per_side: 16,
@@ -47,7 +47,7 @@ const state = {
 } 
 
 gui.add(state, 'refresh')
-
+gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
 
 if (WEBGL.isWebGLAvailable()) {
   var camera, scene, renderer, controls
