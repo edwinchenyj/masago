@@ -48,7 +48,7 @@ const state = {
 } 
 
 gui.add(state, 'refresh')
-gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
+// gui.add(state, 'dimension', {'2D': 2, '3D': 3}).onChange(state.refresh)
 
 if (WEBGL.isWebGLAvailable()) {
   var camera, scene, renderer, controls
