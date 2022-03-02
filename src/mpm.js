@@ -107,29 +107,10 @@ export function resetGrid(grid = [], dimension =2) {
   grid.cells = []
   initializeGrid(grid, dimension)
 }
-function gridIndex(i, j, grid_res) { return i + grid_res*j; }
 
 export function P2G(grid, particles = [], grid_res, dimension = 2) {
   for (let i = 0; i < particles.length; i++) {
     const p = particles[i]
-    // const base_coord = floor(subtract(p.position.toArray(), 0.5))
-    // const fx = subtract(p.position.toArray(), base_coord) // base position in grid units
-
-    // const weights = [
-    //   dotmultiply([0.5,0.5], square(subtract([1.5,1.5], fx))),
-    //   subtract([0.75,0.75], square(subtract(fx, [1,1]))),
-    //   dotmultiply([0.5,0.5], square(subtract([0.5,0.5], fx))),
-    // ]
-
-    // const mv = [p.velocity[0] * p.mass, p.velocity[1] * p.mass, p.mass]
-
-    // for(let j = 0; j < weights.length; j++) {
-    //   for(let k = 0; k < weights.length; k++) {
-    //     const ii = gridIndex(base_coord[0] + j, base_coord[1] + k, grid_res) 
-    //     const weight = weights[j][0]
-    //   }
-    // }
-
 
     const position = p.position.toArray().slice(0, dimension)
     const cell_idx = floor(position)
