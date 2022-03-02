@@ -24,10 +24,10 @@ const state = {
     state.scene.add( state.particles.mesh )
   },
   dimension: 2,
-  amount_per_side: 8,
+  amount_per_side: 16,
   grid_res: 1,
   gravity: [0, -0.05],
-  dt: 1.0,
+  dt: 0.1,
   
   iterations: 1,
   particles: {

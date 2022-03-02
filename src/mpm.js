@@ -11,9 +11,9 @@ const gravity = [0, -0.05]
 export function Particle(dimension = 2) {
   return {
     position: new THREE.Vector3(0,0,0),
-    velocity: matrix(zeros(dimension)), 
+    velocity: [0,0], 
     color: new THREE.Color(0xffffff),
-    C: matrix(zeros(dimension, dimension)),
+    C: matrix([[0,0],[0,0]]),
     mass: 1.0,
     padding: 0.0,
   }
@@ -21,7 +21,7 @@ export function Particle(dimension = 2) {
 
 export function Cell(dimension = 2) {
   return {
-    velocity: matrix(zeros(dimension)),
+    velocity: [0,0],
     mass: 0.0,
     padding: 0.0,
   }
@@ -61,7 +61,7 @@ export function initializeParticle(
         let p = new Particle(dimension)
         p.position.setFromMatrixPosition(threejs_matrix)
         p.velocity = [0,0]
-        p.velocity = multiply(0.5,matrix([ Math.random() - 0.5, Math.random() - 0.5  + 1]) ) 
+        p.velocity = multiply(0.5,[ Math.random() - 0.5, Math.random() - 0.5  + 1] ) 
         p.C = matrix(zeros(dimension,dimension))
         p.mass = 1.0
         particles.list.push(p)
@@ -122,7 +122,7 @@ export function P2G(grid, particles = [], grid_res, dimension = 2) {
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
           const cell_dist = add(0.5, subtract(cell_idx_local, position))
-          const Q = multiply((p.C), cell_dist)
+          const Q = multiply((p.C), cell_dist).toArray()
 
           const mass_contrib = weight * p.mass
 
@@ -185,7 +185,7 @@ function P2G_second(grid, particles = [], grid_res, dt=1, dimension = 2) {
           const cell_index = cell_idx_local[0]*grid_res + cell_idx_local[1]
           const cell = grid.cells[cell_index]
 
-          const momentum = multiply(multiply(eq_16_term_0, weight),cell_dist)
+          const momentum = multiply(multiply(eq_16_term_0, weight),cell_dist).toArray()
           cell.velocity = add(cell.velocity, momentum)
 
           grid.cells[cell_index] = cell
@@ -214,10 +214,10 @@ export function gridVelocityUpdate(grid = [], grid_res, dt=1, dimension = 2) {
         const x = parseInt(i / grid_res)
         const y = parseInt(i % grid_res)
         if (x < 2 || x > grid_res - 3) {
-          cell.velocity.set([0],0.0)
+          cell.velocity[0] = 0
         }
         if (y < 2 || y > grid_res - 3) {
-          cell.velocity.set([1],0.0)
+          cell.velocity[1] = 0
         }
       }
       if (dimension == 3) {
@@ -231,13 +231,13 @@ export function gridVelocityUpdate(grid = [], grid_res, dt=1, dimension = 2) {
         const y = parseInt(i % grid_res)
         const z = parseInt(i / (grid_res * grid_res))
         if (x < 2 || x > grid_res - 3) {
-          cell.velocity.set([0],0.0)
+          cell.velocity[0] = 0
         }
         if (y < 2 || y > grid_res - 3) {
-          cell.velocity.set([1],0.0)
+          cell.velocity[1] = 0
         }
         if (z < 2 || z > grid_res - 3) {
-          cell.velocity.set([2],0.0)
+          cell.velocity[2] = 0
         }
       }
       grid.cells[i] = cell
@@ -249,7 +249,7 @@ export function gridVelocityUpdate(grid = [], grid_res, dt=1, dimension = 2) {
 export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
   for (let i = 0; i < particles.length; i++) {
     const p = particles[i]
-    p.velocity = zeros(dimension)
+    p.velocity = [0,0] 
 
     const position = p.position.toArray().slice(0, dimension)
     const cell_idx = floor(position)
@@ -258,19 +258,19 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
     const weights = []
     calculateQuadraticWeights(cell_diff, weights)
 
-    let B = matrix(zeros(dimension, dimension))
+    let B = matrix([[0,0],[0,0]])
     if(dimension == 2){
       for(let gx = 0; gx < weights.length; gx++){
         for(let gy = 0; gy < weights.length; gy++){
           const weight = weights[gx][0] * weights[gy][1]
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
-          const cell_index = parseInt(cell_idx_local[0])*grid_res + parseInt(cell_idx_local[1])
+          const cell_index = cell_idx_local[0]*grid_res + cell_idx_local[1]
           const cell_dist = add(0.5, subtract(cell_idx_local, position))
 
           const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
 
-          const term = (matrix([multiply(weighted_velocity, cell_dist[0]), multiply(weighted_velocity, cell_dist[1])]))
+          const term = transpose(matrix([multiply(weighted_velocity, cell_dist[0]), multiply(weighted_velocity, cell_dist[1])]))
 
           B = add(B, term)
 
@@ -281,7 +281,7 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
     p.C = multiply(B,4.0)
     advect(p, dt, dimension)
     safetyClamp(p, grid_res, dimension)
-    // handleBC(p, grid_res, dt, dimension)
+    handleBC(p, grid_res, dt, dimension)
 
     particles[i] = p
   }
@@ -290,8 +290,8 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
 
 function advect(p, dt=1, dimension = 2) {
   const movement = multiply(p.velocity, dt)
-  p.position.x = p.position.x + movement.toArray()[0]
-  p.position.y = p.position.y + movement.toArray()[1]
+  p.position.x = p.position.x + movement[0]
+  p.position.y = p.position.y + movement[1]
 }
 
 function safetyClamp(p, grid_res, dimension = 2) {
@@ -299,19 +299,19 @@ function safetyClamp(p, grid_res, dimension = 2) {
 }
 
 function handleBC(p, grid_res, dt = 1, dimension = 2){
-  const approx = add(p.position.toArray().slice(0, dimension), multiply(dt,p.velocity).toArray().slice(0, dimension))
+  const approx = add(p.position.toArray().slice(0, dimension), multiply(dt,p.velocity).slice(0, dimension))
   const wall_min = 3
   const wall_max = grid_res - 4
   if(approx[0] < wall_min){
-    p.velocity.set([0],add(p.velocity.get([0]), wall_min - approx[0])) 
+    p.velocity[0] = add(p.velocity[0], wall_min - approx[0])
   }
   if(approx[0] > wall_max){
-    p.velocity.set([0],add(p.velocity.get([0]), wall_max - approx[0]))
+    p.velocity[0] = add(p.velocity[0], wall_max - approx[0])
   }
   if(approx[1] < wall_min){
-    p.velocity.set([1],add(p.velocity.get([1]), wall_min - approx[1]))
+    p.velocity[1] = add(p.velocity[1], wall_min - approx[1])
   }
   if(approx[1] > wall_max){
-    p.velocity.set([1],add(p.velocity.get([1]), wall_max - approx[1]))
+    p.velocity[1] = add(p.velocity[1], wall_max - approx[1])
   }
 }
