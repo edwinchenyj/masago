@@ -104,8 +104,18 @@ export function simulate(grid, particles, dt=1, dimension = 2) {
 
 export function resetGrid(grid = [], dimension =2) {
   // reset grid
-  grid.cells = []
-  initializeGrid(grid, dimension)
+  if(dimension == 2){
+  for (let i = 0; i < grid.cells.length; i++) {
+    grid.cells[i].velocity = [0,0]
+    grid.cells[i].mass = 0
+  }  
+  }
+  if(dimension == 3){
+    for(let i = 0; i < grid.cells.length; i++){
+      grid.cells[i].velocity = [0,0,0]
+      grid.cells[i].mass = 0
+    }
+  }
 }
 
 export function P2G(grid, particles = [], grid_res, dimension = 2) {
