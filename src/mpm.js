@@ -83,7 +83,7 @@ export function initializeGrid(grid, dimension = 2) {
 export function simulate(grid, particles, dt=1, dimension = 2) {
   resetGrid(grid, dimension)
   P2G(grid, particles, grid.grid_res, dimension)
-  // P2G_second(grid, particles, grid.grid_res, dt, dimension)
+  P2G_second(grid, particles, grid.grid_res, dt, dimension)
   gridVelocityUpdate(grid, grid.grid_res, dt, dimension)
   G2P(grid, particles, grid.grid_res, dt, dimension) // includes dt for advection
 }
@@ -122,7 +122,7 @@ export function P2G(grid, particles = [], grid_res, dimension = 2) {
 
           const cell_idx_local = [cell_idx[0] + gx - 1, cell_idx[1] + gy - 1]
           const cell_dist = add(0.5, subtract(cell_idx_local, position))
-          const Q = multiply(p.C, cell_dist)
+          const Q = multiply((p.C), cell_dist)
 
           const mass_contrib = weight * p.mass
 
@@ -165,8 +165,9 @@ function P2G_second(grid, particles = [], grid_res, dt=1, dimension = 2) {
       const pressure = Math.max(-0.1, eos_stiffness * (Math.pow(density / rest_density, eos_power ) - 1))
       let stress = matrix([[-pressure, 0], [0, -pressure]])
       const dudv = p.C
-      let strain = dudv
-      const strain_trace = trace(strain)
+      const strain = dudv
+      // const strain_trace = trace(strain)
+      const strain_trace = strain.get([1,0]) + strain.get([0,1])
       strain.set([0,1], strain_trace)
       strain.set([1,0], strain_trace)
 
@@ -269,7 +270,7 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
 
           const weighted_velocity = multiply(grid.cells[cell_index].velocity, weight)
 
-          const term = transpose(matrix([multiply(weighted_velocity, cell_dist[0]), multiply(weighted_velocity, cell_dist[1])]))
+          const term = (matrix([multiply(weighted_velocity, cell_dist[0]), multiply(weighted_velocity, cell_dist[1])]))
 
           B = add(B, term)
 
@@ -280,7 +281,7 @@ export function G2P(grid = [], particles = [], grid_res, dt=1, dimension = 2) {
     p.C = multiply(B,4.0)
     advect(p, dt, dimension)
     safetyClamp(p, grid_res, dimension)
-    handleBC(p, grid_res, dimension)
+    // handleBC(p, grid_res, dt, dimension)
 
     particles[i] = p
   }
@@ -294,22 +295,11 @@ function advect(p, dt=1, dimension = 2) {
 }
 
 function safetyClamp(p, grid_res, dimension = 2) {
-    if(p.position.x < 1.0){
-      p.position.x = 1.0
-    }
-    if(p.position.x > grid_res - 2.0){
-      p.position.x = grid_res - 2.0
-    }
-    if(p.position.y < 1.0){
-      p.position.y = 1.0
-    }
-    if(p.position.y > grid_res - 2.0){
-      p.position.y = grid_res - 2.0
-    }
+  p.position.clampScalar(1, grid_res - 2)
 }
 
-function handleBC(p, grid_res, dimension = 2){
-  const approx = add(p.position.toArray().slice(0, dimension), p.velocity.toArray().slice(0, dimension))
+function handleBC(p, grid_res, dt = 1, dimension = 2){
+  const approx = add(p.position.toArray().slice(0, dimension), multiply(dt,p.velocity).toArray().slice(0, dimension))
   const wall_min = 3
   const wall_max = grid_res - 4
   if(approx[0] < wall_min){

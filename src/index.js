@@ -62,9 +62,6 @@ if (WEBGL.isWebGLAvailable()) {
 
   const particles_per_side = parseInt( window.location.search.slice( 1 ) ) || 16 
 
-
-  const dt = 1.0;
-
   init()
   animate()
 
@@ -85,7 +82,7 @@ if (WEBGL.isWebGLAvailable()) {
 
     var gridHelper = new THREE.GridHelper(particles_per_side * 4, particles_per_side)
       gridHelper.translateX(2*particles_per_side )
-      gridHelper.translateZ(2*particles_per_side )
+      gridHelper.translateZ(-particles_per_side )
     state.scene.add(gridHelper)
 
     raycaster = new THREE.Raycaster()
